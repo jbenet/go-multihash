@@ -14,26 +14,38 @@ func Decode(encoding, digest string) (mh.Multihash, error) {
 	case "raw":
 		return mh.Cast([]byte(digest))
 	case "hex":
-		return hex.DecodeString(digest)
+		bts, err := hex.DecodeString(digest)
+		if err != nil {
+			return mh.Nil, err
+		}
+		return mh.Cast(bts)
 	case "base58":
-		return base58.Decode(digest)
+		bts, err := base58.Decode(digest)
+		if err != nil {
+			return mh.Nil, err
+		}
+		return mh.Cast(bts)
 	case "base64":
-		return base64.StdEncoding.DecodeString(digest)
+		bts, err := base64.StdEncoding.DecodeString(digest)
+		if err != nil {
+			return mh.Nil, err
+		}
+		return mh.Cast(bts)
 	default:
-		return nil, fmt.Errorf("unknown encoding: %s", encoding)
+		return mh.Nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
 }
 
 func Encode(encoding string, hash mh.Multihash) (string, error) {
 	switch encoding {
 	case "raw":
-		return string(hash), nil
+		return hash.Binary(), nil
 	case "hex":
-		return hex.EncodeToString(hash), nil
+		return hex.EncodeToString(hash.Bytes()), nil
 	case "base58":
-		return base58.Encode(hash), nil
+		return base58.Encode(hash.Bytes()), nil
 	case "base64":
-		return base64.StdEncoding.EncodeToString(hash), nil
+		return base64.StdEncoding.EncodeToString(hash.Bytes()), nil
 	default:
 		return "", fmt.Errorf("unknown encoding: %s", encoding)
 	}

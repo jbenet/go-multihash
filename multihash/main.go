@@ -119,7 +119,7 @@ func main() {
 	inp, err := getInput()
 	checkErr(err)
 
-	if checkMh != nil {
+	if checkMh.IsNil() {
 		err = opts.Check(inp, checkMh)
 		checkErr(err)
 		if !quiet {

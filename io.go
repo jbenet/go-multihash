@@ -62,15 +62,15 @@ func (r *mhReader) ReadByte() (byte, error) {
 func (r *mhReader) ReadMultihash() (Multihash, error) {
 	code, err := binary.ReadUvarint(r)
 	if err != nil {
-		return nil, err
+		return Nil, err
 	}
 
 	length, err := binary.ReadUvarint(r)
 	if err != nil {
-		return nil, err
+		return Nil, err
 	}
 	if length > math.MaxInt32 {
-		return nil, errors.New("digest too long, supporting only <= 2^31-1")
+		return Nil, errors.New("digest too long, supporting only <= 2^31-1")
 	}
 
 	pre := make([]byte, 2*binary.MaxVarintLen64)
@@ -83,7 +83,7 @@ func (r *mhReader) ReadMultihash() (Multihash, error) {
 	copy(buf, pre[:n])
 
 	if _, err := io.ReadFull(r.r, buf[n:]); err != nil {
-		return nil, err
+		return Nil, err
 	}
 
 	return Cast(buf)
@@ -98,6 +98,6 @@ func (w *mhWriter) Write(buf []byte) (n int, err error) {
 }
 
 func (w *mhWriter) WriteMultihash(m Multihash) error {
-	_, err := w.w.Write([]byte(m))
+	_, err := w.w.Write(m.Bytes())
 	return err
 }

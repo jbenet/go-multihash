@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"math"
 
+	strbinary "github.com/multiformats/go-multihash/strbinary"
+
 	b58 "github.com/mr-tron/base58/base58"
 )
 
@@ -24,6 +26,9 @@ var (
 	ErrVarintBufferShort = errors.New("uvarint: buffer too small")
 	ErrVarintTooLong     = errors.New("uvarint: varint too big (max 64bit)")
 )
+
+// Nil represents an empty multihash value.
+var Nil = Multihash{}
 
 // ErrInconsistentLen is returned when a decoded multihash has an inconsistent length
 type ErrInconsistentLen struct {
@@ -165,19 +170,39 @@ type DecodedMultihash struct {
 	Digest []byte // Digest holds the raw multihash bytes
 }
 
-// Multihash is byte slice with the following form:
+// Multihash is the cannoical representation of a Multihash
+// It is repressed internally as a binary with the following form:
 // <hash function code><digest size><hash function output>.
 // See the spec for more information.
-type Multihash []byte
+type Multihash struct {
+	s string
+}
 
 // HexString returns the hex-encoded representation of a multihash.
-func (m *Multihash) HexString() string {
-	return hex.EncodeToString([]byte(*m))
+func (m Multihash) HexString() string {
+	return hex.EncodeToString([]byte(m.s))
 }
 
 // String is an alias to HexString().
-func (m *Multihash) String() string {
+func (m Multihash) String() string {
 	return m.HexString()
+}
+
+// Bytes returns the multihash as a byte slice.
+func (m Multihash) Bytes() []byte {
+	return []byte(m.s)
+}
+
+// IsNil returns true if the multihash is empty.
+func (m Multihash) IsNil() bool {
+	return m.s == ""
+}
+
+// Binary returns the multihash as a binary string.
+//
+// Unlike `bytes`, this doesn't allocate.
+func (m Multihash) Binary() string {
+	return m.s
 }
 
 // FromHexString parses a hex-encoded multihash.
@@ -192,7 +217,7 @@ func FromHexString(s string) (Multihash, error) {
 
 // B58String returns the B58-encoded representation of a multihash.
 func (m Multihash) B58String() string {
-	return b58.Encode([]byte(m))
+	return b58.Encode([]byte(m.s))
 }
 
 // FromB58String parses a B58-encoded multihash.
@@ -203,6 +228,39 @@ func FromB58String(s string) (m Multihash, err error) {
 	}
 
 	return Cast(b)
+}
+
+// FromBinary creates a new multihash from the binary representation.
+func FromBinary(v string) (Multihash, error) {
+	if len(v) < 2 {
+		return Nil, ErrTooShort
+	}
+	i := 0
+	codec, l := strbinary.Uvarint(v)
+	if l <= 0 {
+		return Nil, ErrInvalidMultihash
+	}
+	if !ValidCode(codec) {
+		return Nil, ErrUnknownCode
+	}
+	i += l
+	digestLen, l := strbinary.Uvarint(v[i:])
+	i += l
+	if l <= 0 || len(v[i:]) != int(digestLen) {
+		return Nil, ErrInvalidMultihash
+	}
+	return Multihash{v}, nil
+}
+
+// Parts returns the components of the Multihash: the Code and Digest.
+// The length part can be derived from the Digest length.
+func (m Multihash) Parts() (uint64, string) {
+	// Note: no need to check for errors as the FromBinary method guarantees
+	// the string can be parsed
+	codec, i := strbinary.Uvarint(m.s)
+	// skip over Length component, no need to read it
+	i += strbinary.UvarintLen(m.s[i:])
+	return codec, m.s[i:]
 }
 
 // Cast casts a buffer onto a multihash, and returns an error
@@ -217,7 +275,7 @@ func Cast(buf []byte) (Multihash, error) {
 		return Multihash{}, ErrUnknownCode
 	}
 
-	return Multihash(buf), nil
+	return Multihash{s: string(buf)}, nil
 }
 
 // Decode parses multihash bytes into a DecodedMultihash.

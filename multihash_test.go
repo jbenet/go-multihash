@@ -53,7 +53,7 @@ var testCases = []TestCase{
 func (tc TestCase) Multihash() (Multihash, error) {
 	ob, err := hex.DecodeString(tc.hex)
 	if err != nil {
-		return nil, err
+		return Nil, err
 	}
 
 	pre := make([]byte, 2*binary.MaxVarintLen64)
@@ -64,6 +64,39 @@ func (tc TestCase) Multihash() (Multihash, error) {
 
 	nb := append(pre[:n], ob...)
 	return Cast(nb)
+}
+
+func TestStringRepr(t *testing.T) {
+	for _, tc := range testCases {
+		ob, err := hex.DecodeString(tc.hex)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		pre := make([]byte, 2*binary.MaxVarintLen64)
+		spot := pre
+		n := binary.PutUvarint(spot, tc.code)
+		spot = pre[n:]
+		n += binary.PutUvarint(spot, uint64(len(ob)))
+
+		nb := append(pre[:n], ob...)
+
+		mh, err := FromBinary(string(nb))
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		code, digest := mh.Parts()
+
+		if code != tc.code {
+			t.Error("decoded code mismatch: ", code, tc.code)
+		}
+
+		if digest != string(ob) {
+			t.Error("decoded byte mismatch: ", digest, ob)
+		}
+	}
 }
 
 func TestEncode(t *testing.T) {
@@ -103,11 +136,12 @@ func TestEncode(t *testing.T) {
 			t.Error("encoded byte mismatch: ", encN, nb)
 		}
 
-		h, err := tc.Multihash()
+		h1, err := tc.Multihash()
 		if err != nil {
 			t.Error(err)
+			continue
 		}
-		if !bytes.Equal(h, nb) {
+		if h1.Binary() != string(nb) {
 			t.Error("Multihash func mismatch.")
 		}
 	}
@@ -227,8 +261,18 @@ func TestCast(t *testing.T) {
 			continue
 		}
 
+		if _, err := FromBinary(string(nb)); err != nil {
+			t.Error(err)
+			continue
+		}
+
 		if _, err = Cast(ob); err == nil {
 			t.Error("cast failed to detect non-multihash")
+			continue
+		}
+
+		if _, err = FromBinary(string(ob)); err == nil {
+			t.Error("FromBinary failed to detect non-multihash")
 			continue
 		}
 	}
@@ -257,7 +301,7 @@ func TestHex(t *testing.T) {
 			continue
 		}
 
-		if !bytes.Equal(mh, nb) {
+		if mh.Binary() != string(nb) {
 			t.Error("FromHexString failed", nb, mh)
 			continue
 		}

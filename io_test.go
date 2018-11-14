@@ -25,16 +25,16 @@ func TestEvilReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := NewReader(&evilReader{emptyHash})
+	r := NewReader(&evilReader{emptyHash.Bytes()})
 	h, err := r.ReadMultihash()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(h, []byte(emptyHash)) {
+	if h != emptyHash {
 		t.Fatal(err)
 	}
 	h, err = r.ReadMultihash()
-	if len([]byte(h)) > 0 || err != io.EOF {
+	if h != Nil || err != io.EOF {
 		t.Fatal("expected end of file")
 	}
 }
@@ -49,7 +49,7 @@ func TestReader(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		buf.Write([]byte(m))
+		buf.Write(m.Bytes())
 	}
 
 	r := NewReader(&buf)
@@ -66,7 +66,7 @@ func TestReader(t *testing.T) {
 			continue
 		}
 
-		if !bytes.Equal(h, h2) {
+		if h != h2 {
 			t.Error("h and h2 should be equal")
 		}
 	}
@@ -89,13 +89,13 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 
-		buf2 := make([]byte, len(m))
+		buf2 := make([]byte, len(m.Bytes()))
 		if _, err := io.ReadFull(&buf, buf2); err != nil {
 			t.Error(err)
 			continue
 		}
 
-		if !bytes.Equal(m, buf2) {
+		if m.Binary() != string(buf2) {
 			t.Error("m and buf2 should be equal")
 		}
 	}

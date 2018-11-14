@@ -1,7 +1,6 @@
 package multihash
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"runtime"
@@ -72,9 +71,9 @@ func TestSum(t *testing.T) {
 			continue
 		}
 
-		if !bytes.Equal(m1, m2) {
+		if m1 != m2 {
 			t.Error(tc.code, Codes[tc.code], "sum failed.", m1, m2)
-			t.Error(hex.EncodeToString(m2))
+			t.Error(hex.EncodeToString(m2.Bytes()))
 		}
 
 		s1 := m1.HexString()
@@ -86,7 +85,7 @@ func TestSum(t *testing.T) {
 		m3, err := FromB58String(s2)
 		if err != nil {
 			t.Error("failed to decode b58")
-		} else if !bytes.Equal(m3, m1) {
+		} else if m3 != m1 {
 			t.Error("b58 failing bytes")
 		} else if s2 != m3.B58String() {
 			t.Error("b58 failing string")
